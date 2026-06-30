@@ -30,7 +30,6 @@ const SOURCES = [
   { name: '요즘IT', url: 'https://yozm.wishket.com/magazine/feed/', category: 'tech' },
   { name: '토스 테크', url: 'https://toss.tech/rss.xml', category: 'tech' },
   { name: '카카오 테크', url: 'https://tech.kakao.com/feed/', category: 'tech' },
-  { name: '네이버 D2', url: 'https://d2.naver.com/d2.atom', category: 'tech' },
   { name: 'LINE 엔지니어링', url: 'https://engineering.linecorp.com/ko/feed', category: 'tech' },
   { name: 'UX 콜렉티브', url: 'https://uxdesign.cc/feed', category: 'design' },
   { name: '당근 테크', url: 'https://medium.com/feed/daangn', category: 'tech' },
