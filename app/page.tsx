@@ -231,7 +231,7 @@ export default function Home() {
         )}
 
         {!loading && groups.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6 flex justify-end">
             <select
               value={effectiveFilter ?? ''}
               onChange={(e) => setActiveFilter(e.target.value || null)}
