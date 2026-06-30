@@ -60,7 +60,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">모닝 브리핑</h1>
             <p className="text-xs text-gray-400 mt-0.5">{today}</p>
@@ -75,7 +75,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-8">
           <p className="text-2xl font-bold text-gray-900">{getGreeting()}</p>
           <p className="text-gray-500 mt-1 text-sm">오늘의 IT·디자인 트렌드를 모아왔어요.</p>
@@ -174,7 +174,7 @@ export default function Home() {
               {articles.length}개의 글
               {fetchedAt && ` · ${new Date(fetchedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준`}
             </p>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {articles.map((article) => (
                 <ArticleCard key={article.id} article={article} />
               ))}
