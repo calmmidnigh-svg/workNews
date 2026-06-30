@@ -56,24 +56,65 @@ export type SourceStatusType = {
   error?: string
 }
 
-// XML 파싱 전 공통 오류 정제
 function sanitizeXml(raw: string): string {
-  return raw
-    // CDATA 밖의 단독 & → &amp; (엔티티 오류 방지)
-    .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
-    // 잘못된 닫힘 태그 앞 공백 정리
-    .replace(/\s*<\/\s*/g, '</')
+  // CDATA 영역 보호
+  const cdataMap: Record<string, string> = {}
+  let cdataIdx = 0
+  let result = raw.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (match) => {
+    const key = `__CDATA_${cdataIdx++}__`
+    cdataMap[key] = match
+    return key
+  })
+
+  // 값 없는 속성 처리: loading, async, defer 등 → loading=""
+  result = result.replace(/(<[^>]+?)\s+([a-zA-Z][a-zA-Z0-9-]*)(?=\s|>|\/)/g, (m, prefix, attr) => {
+    if (m.includes(`${attr}=`)) return m
+    return `${prefix} ${attr}=""`
+  })
+
+  // 단독 & (엔티티 아닌 것) → &amp;
+  result = result.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
+
+  // 비어있는 닫힘 태그 제거
+  result = result.replace(/<\/\s+>/g, '')
+
+  // CDATA 복원
+  Object.entries(cdataMap).forEach(([key, val]) => {
+    result = result.replace(key, val)
+  })
+
+  return result
 }
 
 async function fetchAndParse(url: string) {
-  const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) })
+  const res = await fetch(url, {
+    headers: FETCH_HEADERS,
+    signal: AbortSignal.timeout(10000),
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const raw = await res.text()
   const cleaned = sanitizeXml(raw)
   return parser.parseString(cleaned)
 }
 
-function extractThumbnail(item: CustomItem & { content?: string }): string {
+// og:image 추출 (썸네일 없는 경우 fallback)
+async function fetchOgImage(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': FETCH_HEADERS['User-Agent'] },
+      signal: AbortSignal.timeout(5000),
+    })
+    const html = await res.text()
+    const match =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+    return match?.[1] ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function extractThumbnailFromRss(item: CustomItem & { content?: string }): string {
   const mediaContent = item['media:content']?.$?.url
   if (mediaContent) return mediaContent
 
@@ -88,7 +129,7 @@ function extractThumbnail(item: CustomItem & { content?: string }): string {
 
   const content = item.content ?? ''
   const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i)
-  if (imgMatch?.[1]) return imgMatch[1]
+  if (imgMatch?.[1] && !imgMatch[1].startsWith('data:')) return imgMatch[1]
 
   return ''
 }
@@ -135,7 +176,7 @@ export async function GET(req: NextRequest) {
             title,
             link: item.link ?? '',
             summary: summarize(content),
-            thumbnail: extractThumbnail(item),
+            thumbnail: extractThumbnailFromRss(item),
             date: item.pubDate ?? item.isoDate ?? '',
             source: source.name,
             category: source.category,
@@ -154,6 +195,18 @@ export async function GET(req: NextRequest) {
       }
     }),
   )
+
+  // 썸네일 없는 글 → og:image 병렬 보충 (최대 15개)
+  const noThumb = results.filter((a) => !a.thumbnail && a.link).slice(0, 15)
+  if (noThumb.length > 0) {
+    const ogImages = await Promise.allSettled(noThumb.map((a) => fetchOgImage(a.link)))
+    ogImages.forEach((res, i) => {
+      if (res.status === 'fulfilled' && res.value) {
+        const article = results.find((a) => a.link === noThumb[i].link)
+        if (article) article.thumbnail = res.value
+      }
+    })
+  }
 
   results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
