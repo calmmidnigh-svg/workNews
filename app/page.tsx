@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { ArticleType } from './api/news/route'
+import type { ArticleType, SourceStatusType } from './api/news/route'
 
 const DEFAULT_KEYWORDS = ['AI', 'UX', '디자인', '개발자', '트렌드']
 
@@ -21,11 +21,13 @@ function getGreeting() {
 
 export default function Home() {
   const [articles, setArticles] = useState<ArticleType[]>([])
+  const [sourceStatuses, setSourceStatuses] = useState<SourceStatusType[]>([])
   const [keywords, setKeywords] = useState<string[]>(DEFAULT_KEYWORDS)
   const [inputValue, setInputValue] = useState(DEFAULT_KEYWORDS.join(', '))
   const [loading, setLoading] = useState(false)
   const [fetchedAt, setFetchedAt] = useState('')
   const [error, setError] = useState('')
+  const [showSources, setShowSources] = useState(false)
 
   const fetchNews = useCallback(async (kws: string[]) => {
     setLoading(true)
@@ -34,6 +36,7 @@ export default function Home() {
       const res = await fetch(`/api/news?keywords=${encodeURIComponent(kws.join(','))}`)
       const data = await res.json()
       setArticles(data.articles ?? [])
+      setSourceStatuses(data.sourceStatuses ?? [])
       setFetchedAt(data.fetchedAt ?? '')
     } catch {
       setError('뉴스를 불러오는 중 오류가 발생했어요.')
@@ -56,6 +59,8 @@ export default function Home() {
   const today = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
+
+  const failedSources = sourceStatuses.filter((s) => !s.ok)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,7 +86,8 @@ export default function Home() {
           <p className="text-gray-500 mt-1 text-sm">오늘의 IT·디자인 트렌드를 모아왔어요.</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-8">
+        {/* 키워드 설정 */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
           <p className="text-sm font-medium text-gray-700 mb-3">관심 키워드</p>
           <div className="flex gap-2">
             <input
@@ -89,7 +95,7 @@ export default function Home() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-              placeholder="AI, UX, 디자인시스템, 리액트…"
+              placeholder="비워두면 전체 글 표시 / AI, UX, 디자인시스템…"
             />
             <button
               onClick={handleApply}
@@ -99,14 +105,48 @@ export default function Home() {
               적용
             </button>
           </div>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {keywords.map((kw) => (
-              <span key={kw} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
-                {kw}
-              </span>
-            ))}
-          </div>
+          {keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {keywords.map((kw) => (
+                <span key={kw} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* 소스 상태 */}
+        {sourceStatuses.length > 0 && (
+          <div className="mb-6">
+            <button
+              onClick={() => setShowSources((v) => !v)}
+              className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1"
+            >
+              <span>소스 현황 {sourceStatuses.filter((s) => s.ok).length}/{sourceStatuses.length}</span>
+              {failedSources.length > 0 && (
+                <span className="text-red-400">· {failedSources.length}개 오류</span>
+              )}
+              <span>{showSources ? '▲' : '▼'}</span>
+            </button>
+            {showSources && (
+              <div className="mt-2 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                {sourceStatuses.map((s) => (
+                  <div key={s.name} className="px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-gray-700 font-medium">{s.name}</span>
+                    {s.ok ? (
+                      <span className="text-xs text-green-600">{s.count}개 수집</span>
+                    ) : (
+                      <span className="text-xs text-red-500 truncate max-w-[200px]" title={s.error}>
+                        실패 · {s.error?.slice(0, 40)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 text-red-600 rounded-xl p-4 mb-6 text-sm">{error}</div>
@@ -129,14 +169,14 @@ export default function Home() {
           <div className="text-center py-16 text-gray-400">
             <p className="text-4xl mb-3">📭</p>
             <p className="text-sm">해당 키워드의 최신 글이 없어요.</p>
-            <p className="text-xs mt-1">키워드를 바꿔 다시 시도해보세요.</p>
+            <p className="text-xs mt-1">키워드를 비워두면 전체 글을 볼 수 있어요.</p>
           </div>
         )}
 
         {!loading && articles.length > 0 && (
           <>
             <p className="text-xs text-gray-400 mb-4">
-              {articles.length}개의 글을 찾았어요
+              {articles.length}개의 글
               {fetchedAt && ` · ${new Date(fetchedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준`}
             </p>
             <div className="space-y-4">
@@ -148,8 +188,7 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="block bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-sm transition-all group"
                 >
-                  <div className="flex gap-0">
-                    {/* 텍스트 영역 */}
+                  <div className="flex">
                     <div className="flex-1 p-5 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-medium text-gray-500">{article.source}</span>
@@ -166,15 +205,16 @@ export default function Home() {
                       {article.summary && (
                         <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{article.summary}</p>
                       )}
-                      <div className="flex flex-wrap gap-1.5 mt-3">
-                        {article.matched.map((kw) => (
-                          <span key={kw} className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
+                      {article.matched.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {article.matched.map((kw) => (
+                            <span key={kw} className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {/* 썸네일 */}
                     {article.thumbnail && (
                       <div className="flex-shrink-0 w-24 h-24 m-4 ml-0 rounded-xl overflow-hidden bg-gray-100">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
