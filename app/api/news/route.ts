@@ -57,25 +57,36 @@ export type SourceStatusType = {
 }
 
 function sanitizeXml(raw: string): string {
+  // BOM 제거
+  let result = raw.replace(/^﻿/, '')
+
   // CDATA 영역 보호
   const cdataMap: Record<string, string> = {}
   let cdataIdx = 0
-  let result = raw.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (match) => {
+  result = result.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, (match) => {
     const key = `__CDATA_${cdataIdx++}__`
     cdataMap[key] = match
     return key
   })
 
-  // 값 없는 속성 처리: loading, async, defer 등 → loading=""
-  result = result.replace(/(<[^>]+?)\s+([a-zA-Z][a-zA-Z0-9-]*)(?=\s|>|\/)/g, (m, prefix, attr) => {
-    if (m.includes(`${attr}=`)) return m
-    return `${prefix} ${attr}=""`
+  // 태그 내부만 처리
+  result = result.replace(/<([^>]+)>/g, (fullTag, inner) => {
+    // 단독 & → &amp;
+    let fixed = inner.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
+
+    // 유효하지 않은 속성명 제거 (XML 속성명은 문자/_/: 로 시작해야 함)
+    fixed = fixed.replace(/\s+[^a-zA-Z_:\s\/][^\s=/>]*(=(?:"[^"]*"|'[^']*'|[^\s/>]*))?/g, '')
+
+    // 값 없는 속성 → attr=""
+    fixed = fixed.replace(/(\s)([a-zA-Z_:][-a-zA-Z0-9._:]*)(?=[\s>\/])/g, '$1$2=""')
+
+    return `<${fixed}>`
   })
 
-  // 단독 & (엔티티 아닌 것) → &amp;
+  // 태그 밖 단독 & → &amp;
   result = result.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
 
-  // 비어있는 닫힘 태그 제거
+  // 빈 닫힘 태그 제거
   result = result.replace(/<\/\s+>/g, '')
 
   // CDATA 복원
