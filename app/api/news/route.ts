@@ -113,8 +113,14 @@ async function fetchAndParse(url: string) {
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const raw = await res.text()
-  const cleaned = sanitizeXml(raw)
-  return parser.parseString(cleaned)
+
+  // 1차: 원본 그대로 파싱 시도
+  try {
+    return await parser.parseString(raw)
+  } catch {
+    // 2차: 정제 후 재시도
+    return parser.parseString(sanitizeXml(raw))
+  }
 }
 
 // og:image 추출 (썸네일 없는 경우 fallback)
