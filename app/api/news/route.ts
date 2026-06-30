@@ -69,12 +69,21 @@ function sanitizeXml(raw: string): string {
     return key
   })
 
+  // Atom <content type="html"> 또는 <summary type="html"> 내부를 CDATA로 감싸기
+  result = result.replace(
+    /<(content|summary|description)([^>]*type=["']html["'][^>]*)>([\s\S]*?)<\/(content|summary|description)>/gi,
+    (_, tag, attrs, inner, closeTag) => {
+      const safe = inner.replace(/]]>/g, ']]]]><![CDATA[>')
+      return `<${tag}${attrs}><![CDATA[${safe}]]></${closeTag}>`
+    }
+  )
+
   // 태그 내부만 처리
   result = result.replace(/<([^>]+)>/g, (fullTag, inner) => {
     // 단독 & → &amp;
     let fixed = inner.replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
 
-    // 유효하지 않은 속성명 제거 (XML 속성명은 문자/_/: 로 시작해야 함)
+    // 유효하지 않은 속성명 제거
     fixed = fixed.replace(/\s+[^a-zA-Z_:\s\/][^\s=/>]*(=(?:"[^"]*"|'[^']*'|[^\s/>]*))?/g, '')
 
     // 값 없는 속성 → attr=""
