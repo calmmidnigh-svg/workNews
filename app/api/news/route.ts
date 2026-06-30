@@ -196,18 +196,6 @@ export async function GET(req: NextRequest) {
     }),
   )
 
-  // 썸네일 없는 글 → og:image 병렬 보충 (최대 15개)
-  const noThumb = results.filter((a) => !a.thumbnail && a.link).slice(0, 15)
-  if (noThumb.length > 0) {
-    const ogImages = await Promise.allSettled(noThumb.map((a) => fetchOgImage(a.link)))
-    ogImages.forEach((res, i) => {
-      if (res.status === 'fulfilled' && res.value) {
-        const article = results.find((a) => a.link === noThumb[i].link)
-        if (article) article.thumbnail = res.value
-      }
-    })
-  }
-
   results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return NextResponse.json({
