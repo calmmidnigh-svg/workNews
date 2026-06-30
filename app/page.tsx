@@ -164,8 +164,8 @@ export default function Home() {
           )}
         </div>
 
-        {/* 소스 상태 */}
-        {sourceStatuses.length > 0 && (
+        {/* 소스 상태 - hidden */}
+        {false && sourceStatuses.length > 0 && (
           <div className="mb-6">
             <button
               onClick={() => setShowSources((v) => !v)}
