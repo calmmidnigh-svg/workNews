@@ -97,13 +97,22 @@ export default function Home() {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
 
-  const [activeFilter, setActiveFilter] = useState<string | null>('오늘')
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   const failedSources = sourceStatuses.filter((s) => !s.ok)
   const groups = useMemo(() => groupByDate(articles), [articles])
+
+  const defaultFilter = useMemo(() => {
+    if (groups.length === 0) return null
+    const today = groups.find((g) => g.label === '오늘')
+    return today ? '오늘' : groups[0].label
+  }, [groups])
+
+  const effectiveFilter = activeFilter ?? defaultFilter
+
   const filteredGroups = useMemo(
-    () => activeFilter ? groups.filter((g) => g.label === activeFilter) : groups,
-    [groups, activeFilter],
+    () => effectiveFilter ? groups.filter((g) => g.label === effectiveFilter) : groups,
+    [groups, effectiveFilter],
   )
 
   return (
@@ -222,23 +231,18 @@ export default function Home() {
         )}
 
         {!loading && groups.length > 0 && (
-          <div className="flex gap-2 mb-6 flex-wrap">
-            {groups.map((g) => (
-              <button
-                key={g.label}
-                onClick={() => setActiveFilter(activeFilter === g.label ? null : g.label)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  activeFilter === g.label
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
-                }`}
-              >
-                {g.label}
-                <span className={`ml-1.5 text-xs ${activeFilter === g.label ? 'text-gray-300' : 'text-gray-400'}`}>
-                  {g.articles.length}
-                </span>
-              </button>
-            ))}
+          <div className="mb-6">
+            <select
+              value={effectiveFilter ?? ''}
+              onChange={(e) => setActiveFilter(e.target.value || null)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 outline-none focus:border-blue-400 cursor-pointer"
+            >
+              {groups.map((g) => (
+                <option key={g.label} value={g.label}>
+                  {g.label} ({g.articles.length}개)
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
