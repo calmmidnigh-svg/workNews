@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Parser from 'rss-parser'
 
-const parser = new Parser({
+type CustomItem = {
+  'media:content'?: { $?: { url?: string } }
+  'media:thumbnail'?: { $?: { url?: string } }
+  enclosure?: { url?: string; type?: string }
+  'itunes:image'?: { $?: { href?: string } }
+  content?: string
+}
+
+const parser = new Parser<Record<string, unknown>, CustomItem>({
   timeout: 10000,
   headers: { 'User-Agent': 'Mozilla/5.0' },
+  customFields: {
+    item: [
+      ['media:content', 'media:content'],
+      ['media:thumbnail', 'media:thumbnail'],
+      ['enclosure', 'enclosure'],
+      ['itunes:image', 'itunes:image'],
+    ],
+  },
 })
 
 const SOURCES = [
@@ -20,10 +36,36 @@ export type ArticleType = {
   title: string
   link: string
   summary: string
+  thumbnail: string
   date: string
   source: string
   category: string
   matched: string[]
+}
+
+function extractThumbnail(item: CustomItem & { content?: string }): string {
+  // 1. media:content
+  const mediaContent = item['media:content']?.$?.url
+  if (mediaContent) return mediaContent
+
+  // 2. media:thumbnail
+  const mediaThumbnail = item['media:thumbnail']?.$?.url
+  if (mediaThumbnail) return mediaThumbnail
+
+  // 3. enclosure (이미지 타입)
+  const enc = item.enclosure
+  if (enc?.url && enc?.type?.startsWith('image')) return enc.url
+
+  // 4. itunes:image
+  const itunesImage = item['itunes:image']?.$?.href
+  if (itunesImage) return itunesImage
+
+  // 5. content 내 첫 번째 <img> 태그
+  const content = item.content ?? ''
+  const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i)
+  if (imgMatch?.[1]) return imgMatch[1]
+
+  return ''
 }
 
 function summarize(content: string): string {
@@ -62,6 +104,7 @@ export async function GET(req: NextRequest) {
             title,
             link: item.link ?? '',
             summary: summarize(content),
+            thumbnail: extractThumbnail(item),
             date: item.pubDate ?? item.isoDate ?? '',
             source: source.name,
             category: source.category,
