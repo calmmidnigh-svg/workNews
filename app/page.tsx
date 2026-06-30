@@ -97,7 +97,7 @@ export default function Home() {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
 
-  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null | ''>(null)
 
   const failedSources = sourceStatuses.filter((s) => !s.ok)
   const groups = useMemo(() => groupByDate(articles), [articles])
@@ -108,7 +108,7 @@ export default function Home() {
     return today ? '오늘' : groups[0].label
   }, [groups])
 
-  const effectiveFilter = activeFilter ?? defaultFilter
+  const effectiveFilter = activeFilter === null ? defaultFilter : (activeFilter || null)
 
   const filteredGroups = useMemo(
     () => effectiveFilter ? groups.filter((g) => g.label === effectiveFilter) : groups,
@@ -234,7 +234,7 @@ export default function Home() {
           <div className="mb-6 flex justify-end">
             <select
               value={effectiveFilter ?? ''}
-              onChange={(e) => setActiveFilter(e.target.value || null)}
+              onChange={(e) => setActiveFilter(e.target.value === '' ? '' : e.target.value)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 outline-none focus:border-blue-400 cursor-pointer"
             >
               <option value="">전체 보기 ({articles.length}개)</option>
