@@ -97,8 +97,14 @@ export default function Home() {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   })
 
+  const [activeFilter, setActiveFilter] = useState<string | null>('오늘')
+
   const failedSources = sourceStatuses.filter((s) => !s.ok)
   const groups = useMemo(() => groupByDate(articles), [articles])
+  const filteredGroups = useMemo(
+    () => activeFilter ? groups.filter((g) => g.label === activeFilter) : groups,
+    [groups, activeFilter],
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -216,8 +222,29 @@ export default function Home() {
         )}
 
         {!loading && groups.length > 0 && (
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {groups.map((g) => (
+              <button
+                key={g.label}
+                onClick={() => setActiveFilter(activeFilter === g.label ? null : g.label)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  activeFilter === g.label
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                {g.label}
+                <span className={`ml-1.5 text-xs ${activeFilter === g.label ? 'text-gray-300' : 'text-gray-400'}`}>
+                  {g.articles.length}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!loading && filteredGroups.length > 0 && (
           <div className="space-y-10">
-            {groups.map((group) => (
+            {filteredGroups.map((group) => (
               <section key={group.label}>
                 <div className="flex items-center gap-3 mb-4">
                   <h2 className="text-base font-bold text-gray-900">{group.label}</h2>
