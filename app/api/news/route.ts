@@ -27,7 +27,7 @@ const FETCH_HEADERS = {
 }
 
 const SOURCES = [
-  { name: '요즘IT', url: 'https://yozm.wishket.com/magazine/rss/', category: 'tech' },
+  { name: '요즘IT', url: 'https://yozm.wishket.com/magazine/feed/', category: 'tech' },
   { name: '토스 테크', url: 'https://toss.tech/rss.xml', category: 'tech' },
   { name: '카카오 테크', url: 'https://tech.kakao.com/feed/', category: 'tech' },
   { name: '네이버 D2', url: 'https://d2.naver.com/d2.atom', category: 'tech' },
