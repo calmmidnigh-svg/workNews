@@ -237,6 +237,7 @@ export default function Home() {
               onChange={(e) => setActiveFilter(e.target.value || null)}
               className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-800 outline-none focus:border-blue-400 cursor-pointer"
             >
+              <option value="">전체 보기 ({articles.length}개)</option>
               {groups.map((g) => (
                 <option key={g.label} value={g.label}>
                   {g.label} ({g.articles.length}개)
