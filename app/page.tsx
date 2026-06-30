@@ -6,7 +6,6 @@ import ArticleCard from './ArticleCard'
 
 const DEFAULT_KEYWORDS = ['AI', 'UX', '디자인', '개발자', '트렌드']
 
-
 function getGreeting() {
   const h = new Date().getHours()
   if (h < 12) return '좋은 아침이에요 ☀️'
@@ -59,31 +58,26 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">모닝 브리핑</h1>
-            <p className="text-xs text-gray-400 mt-0.5">{today}</p>
-          </div>
-          <button
-            onClick={() => fetchNews(keywords)}
-            disabled={loading}
-            className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-40 font-medium"
-          >
-            {loading ? '불러오는 중…' : '새로고침'}
-          </button>
-        </div>
-      </header>
-
       <main className="max-w-6xl mx-auto px-6 py-8">
+
+        {/* 인사 + 날짜 */}
         <div className="mb-8">
           <p className="text-2xl font-bold text-gray-900">{getGreeting()}</p>
-          <p className="text-gray-500 mt-1 text-sm">오늘의 IT·디자인 트렌드를 모아왔어요.</p>
+          <p className="text-gray-400 mt-1 text-sm">{today}</p>
         </div>
 
         {/* 키워드 설정 */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-4">
-          <p className="text-sm font-medium text-gray-700 mb-3">관심 키워드</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-gray-700">관심 키워드</p>
+            <button
+              onClick={() => fetchNews(keywords)}
+              disabled={loading}
+              className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-40 font-medium"
+            >
+              {loading ? '불러오는 중…' : '새로고침'}
+            </button>
+          </div>
           <div className="flex gap-2">
             <input
               className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 text-gray-800"
@@ -148,13 +142,15 @@ export default function Home() {
         )}
 
         {loading && (
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-200 p-5 animate-pulse">
-                <div className="h-3 bg-gray-100 rounded w-20 mb-3" />
-                <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-full mb-1" />
-                <div className="h-3 bg-gray-100 rounded w-2/3" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden animate-pulse">
+                <div className="aspect-video bg-gray-100" />
+                <div className="p-4">
+                  <div className="h-3 bg-gray-100 rounded w-20 mb-3" />
+                  <div className="h-4 bg-gray-100 rounded w-full mb-2" />
+                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
               </div>
             ))}
           </div>
