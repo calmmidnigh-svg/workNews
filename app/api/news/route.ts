@@ -11,10 +11,6 @@ type CustomItem = {
 
 const parser = new Parser<Record<string, unknown>, CustomItem>({
   timeout: 10000,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-    'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-  },
   customFields: {
     item: [
       ['media:content', 'media:content'],
@@ -25,6 +21,11 @@ const parser = new Parser<Record<string, unknown>, CustomItem>({
   },
 })
 
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  'Accept': 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+}
+
 const SOURCES = [
   { name: '요즘IT', url: 'https://yozm.wishket.com/magazine/rss/', category: 'tech' },
   { name: '토스 테크', url: 'https://toss.tech/rss.xml', category: 'tech' },
@@ -32,7 +33,8 @@ const SOURCES = [
   { name: '네이버 D2', url: 'https://d2.naver.com/d2.atom', category: 'tech' },
   { name: 'LINE 엔지니어링', url: 'https://engineering.linecorp.com/ko/feed', category: 'tech' },
   { name: 'UX 콜렉티브', url: 'https://uxdesign.cc/feed', category: 'design' },
-  { name: '브런치 IT', url: 'https://brunch.co.kr/rss/@@rss', category: 'tech' },
+  { name: '당근 테크', url: 'https://medium.com/feed/daangn', category: 'tech' },
+  { name: '쿠팡 엔지니어링', url: 'https://medium.com/feed/coupang-engineering', category: 'tech' },
 ]
 
 export type ArticleType = {
@@ -52,6 +54,23 @@ export type SourceStatusType = {
   ok: boolean
   count: number
   error?: string
+}
+
+// XML 파싱 전 공통 오류 정제
+function sanitizeXml(raw: string): string {
+  return raw
+    // CDATA 밖의 단독 & → &amp; (엔티티 오류 방지)
+    .replace(/&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[\da-fA-F]+);)/g, '&amp;')
+    // 잘못된 닫힘 태그 앞 공백 정리
+    .replace(/\s*<\/\s*/g, '</')
+}
+
+async function fetchAndParse(url: string) {
+  const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const raw = await res.text()
+  const cleaned = sanitizeXml(raw)
+  return parser.parseString(cleaned)
 }
 
 function extractThumbnail(item: CustomItem & { content?: string }): string {
@@ -99,7 +118,7 @@ export async function GET(req: NextRequest) {
   await Promise.allSettled(
     SOURCES.map(async (source) => {
       try {
-        const feed = await parser.parseURL(source.url)
+        const feed = await fetchAndParse(source.url)
         const items = feed.items.slice(0, 15)
         let count = 0
         for (const item of items) {
@@ -109,7 +128,6 @@ export async function GET(req: NextRequest) {
             ? matchKeywords(title + ' ' + content, keywords)
             : []
 
-          // 키워드 있으면 매칭된 것만, 없으면 전체 표시
           if (keywords.length > 0 && matched.length === 0) continue
 
           results.push({
