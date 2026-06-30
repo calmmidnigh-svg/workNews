@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { ArticleType, SourceStatusType } from './api/news/route'
 import ArticleCard from './ArticleCard'
 
@@ -11,6 +11,49 @@ function getGreeting() {
   if (h < 12) return '좋은 아침이에요 ☀️'
   if (h < 18) return '좋은 오후예요'
   return '좋은 저녁이에요 🌙'
+}
+
+function toDateKey(dateStr: string): string {
+  if (!dateStr) return 'older'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return 'older'
+  return d.toISOString().slice(0, 10) // YYYY-MM-DD
+}
+
+function groupByDate(articles: ArticleType[]) {
+  const now = new Date()
+  const todayKey = now.toISOString().slice(0, 10)
+  const yesterdayKey = new Date(now.getTime() - 86400000).toISOString().slice(0, 10)
+  const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10)
+
+  const groups: { label: string; articles: ArticleType[] }[] = []
+  const map: Record<string, ArticleType[]> = {}
+
+  for (const article of articles) {
+    const key = toDateKey(article.date)
+    if (!map[key]) map[key] = []
+    map[key].push(article)
+  }
+
+  const sortedKeys = Object.keys(map).sort((a, b) => b.localeCompare(a))
+
+  for (const key of sortedKeys) {
+    let label: string
+    if (key === todayKey) label = '오늘'
+    else if (key === yesterdayKey) label = '어제'
+    else if (key >= weekAgo) {
+      const d = new Date(key)
+      label = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+    } else if (key === 'older') {
+      label = '이전'
+    } else {
+      const d = new Date(key)
+      label = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+    }
+    groups.push({ label, articles: map[key] })
+  }
+
+  return groups
 }
 
 export default function Home() {
@@ -55,6 +98,7 @@ export default function Home() {
   })
 
   const failedSources = sourceStatuses.filter((s) => !s.ok)
+  const groups = useMemo(() => groupByDate(articles), [articles])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,14 +186,21 @@ export default function Home() {
         )}
 
         {loading && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden animate-pulse">
-                <div className="aspect-video bg-gray-100" />
-                <div className="p-4">
-                  <div className="h-3 bg-gray-100 rounded w-20 mb-3" />
-                  <div className="h-4 bg-gray-100 rounded w-full mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+          <div className="space-y-10">
+            {[1, 2].map((g) => (
+              <div key={g}>
+                <div className="h-4 bg-gray-200 rounded w-16 mb-4 animate-pulse" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden animate-pulse">
+                      <div className="aspect-video bg-gray-100" />
+                      <div className="p-4">
+                        <div className="h-3 bg-gray-100 rounded w-20 mb-3" />
+                        <div className="h-4 bg-gray-100 rounded w-full mb-2" />
+                        <div className="h-3 bg-gray-100 rounded w-2/3" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -164,18 +215,28 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && articles.length > 0 && (
-          <>
-            <p className="text-xs text-gray-400 mb-4">
-              {articles.length}개의 글
-              {fetchedAt && ` · ${new Date(fetchedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준`}
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {articles.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
-            </div>
-          </>
+        {!loading && groups.length > 0 && (
+          <div className="space-y-10">
+            {groups.map((group) => (
+              <section key={group.label}>
+                <div className="flex items-center gap-3 mb-4">
+                  <h2 className="text-base font-bold text-gray-900">{group.label}</h2>
+                  <span className="text-xs text-gray-400">{group.articles.length}개</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {group.articles.map((article) => (
+                    <ArticleCard key={article.id} article={article} />
+                  ))}
+                </div>
+              </section>
+            ))}
+            {fetchedAt && (
+              <p className="text-xs text-gray-400 text-right">
+                {new Date(fetchedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기준
+              </p>
+            )}
+          </div>
         )}
       </main>
     </div>
