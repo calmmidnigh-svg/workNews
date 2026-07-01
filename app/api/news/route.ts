@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Parser from 'rss-parser'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 type CustomItem = {
   'media:content'?: { $?: { url?: string } }
   'media:thumbnail'?: { $?: { url?: string } }
@@ -109,6 +112,7 @@ async function fetchAndParse(url: string) {
   const res = await fetch(url, {
     headers: FETCH_HEADERS,
     signal: AbortSignal.timeout(10000),
+    cache: 'no-store',
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const raw = await res.text()
