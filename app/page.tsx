@@ -5,6 +5,7 @@ import type { ArticleType, SourceStatusType } from './api/news/route'
 import ArticleCard from './ArticleCard'
 
 const DEFAULT_KEYWORDS = ['AI', 'UX', '디자인', '개발자', '트렌드']
+const PRESET_TAGS = ['AI', 'UX', '디자인', '개발자', '트렌드', '프로덕트', '데이터', '프론트엔드', '기획', '리서치']
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -59,8 +60,8 @@ function groupByDate(articles: ArticleType[]) {
 export default function Home() {
   const [articles, setArticles] = useState<ArticleType[]>([])
   const [sourceStatuses, setSourceStatuses] = useState<SourceStatusType[]>([])
-  const [keywords, setKeywords] = useState<string[]>(DEFAULT_KEYWORDS)
-  const [inputValue, setInputValue] = useState(DEFAULT_KEYWORDS.join(', '))
+  const [selectedTags, setSelectedTags] = useState<string[]>(DEFAULT_KEYWORDS)
+  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetchedAt, setFetchedAt] = useState('')
   const [error, setError] = useState('')
@@ -83,14 +84,16 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    fetchNews(keywords)
+    fetchNews(selectedTags)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleApply = () => {
-    const kws = inputValue.split(',').map((k) => k.trim()).filter(Boolean)
-    setKeywords(kws)
-    fetchNews(kws)
+  const toggleTag = (tag: string) => {
+    const next = selectedTags.includes(tag)
+      ? selectedTags.filter((t) => t !== tag)
+      : [...selectedTags, tag]
+    setSelectedTags(next)
+    fetchNews(next)
   }
 
   const today = new Date().toLocaleDateString('ko-KR', {
@@ -100,7 +103,14 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<string | null | ''>(null)
 
   const failedSources = sourceStatuses.filter((s) => !s.ok)
-  const groups = useMemo(() => groupByDate(articles), [articles])
+
+  const searchedArticles = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return articles
+    return articles.filter((a) => (a.title + ' ' + a.summary).toLowerCase().includes(q))
+  }, [articles, searchTerm])
+
+  const groups = useMemo(() => groupByDate(searchedArticles), [searchedArticles])
 
   const defaultFilter = useMemo(() => {
     if (groups.length === 0) return null
@@ -130,38 +140,45 @@ export default function Home() {
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-gray-700">관심 키워드</p>
             <button
-              onClick={() => fetchNews(keywords)}
+              onClick={() => fetchNews(selectedTags)}
               disabled={loading}
               className="text-xs text-blue-600 hover:text-blue-700 disabled:opacity-40 font-medium"
             >
               {loading ? '불러오는 중…' : '새로고침'}
             </button>
           </div>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 text-gray-800"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-              placeholder="비워두면 전체 글 표시 / AI, UX, 디자인시스템…"
-            />
-            <button
-              onClick={handleApply}
-              disabled={loading}
-              className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-700 disabled:opacity-40 font-medium"
-            >
-              적용
-            </button>
+
+          {/* 선택형 태그 */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {PRESET_TAGS.map((tag) => {
+              const active = selectedTags.includes(tag)
+              return (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  disabled={loading}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-40 ${
+                    active
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-50 border border-gray-200 text-gray-500 hover:border-gray-400'
+                  }`}
+                >
+                  {tag}
+                </button>
+              )
+            })}
           </div>
-          {keywords.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {keywords.map((kw) => (
-                <span key={kw} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full font-medium">
-                  {kw}
-                </span>
-              ))}
-            </div>
-          )}
+
+          {/* 검색창 (별개) */}
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+            <input
+              className="w-full text-sm border border-gray-200 rounded-lg pl-9 pr-3 py-2 outline-none focus:border-blue-400 text-gray-800"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="불러온 글에서 제목·내용 검색"
+            />
+          </div>
         </div>
 
         {/* 소스 상태 - hidden */}
